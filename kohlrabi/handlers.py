@@ -113,7 +113,7 @@ class Uploader(RequestHandler):
     path = '/upload'
 
     def post(self):
-        table = self.get_argument('table')
+        table = self.get_argument('module')
         data = str(self.get_argument('data'))
         data = json.loads(data)
         date = self.parse_date(self.get_argument('date', None))

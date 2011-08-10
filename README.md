@@ -1,23 +1,36 @@
-Kohlrabi is a mini webapp, based off of Tornado, for viewing tabular report
-data. You can try running it like this:
+Kohlrabi is a [Tornado](https://github.com/facebook/tornado) based webapp for viewing tabular report data.
 
-    python kohlrabi/main.py -c config.yaml.example
+Out of the Box Example
+======================
+
+You can try running kohlrabi immediately like this:
+
+    example/launch_server_example.sh
+    python example/push_data_example.py
+
+This will start a Kohlrabi server instance at http://localhost:8888/kohlrabi/. 
+Then push_data_example.py will push some fake data to the server in JSON form to
+http://localhost:8888/kohlrabi/upload/. You can then browse two different data
+reports for two different days each: 'Daily Signups' and 'MySQL Query Report' for
+the days of 2011-02-14 and 2011-02-13.
 
 Customizing Kohlrabi
 ====================
 
-Out of the box, Kohlrabi includes a module `kohlrabi.modules.example` that
-demonstrates some example reports. These are meant to be an inspiration for the
-types of reports you might want to put into Kohlrabi, and how to create a new
-class. However, they're probably not very useful to most people; most people
-will need to customize what data they store in Kohlrabi to be slightly or
-entirely different.
+Out of the box, Kohlrabi includes two sample module definitions in `kohlrabi/modules/example.py`.
+The two modules are `Daily Signups` and 'MySQL Query Report`. These are meant to be 
+inspirational templates for the types of reports you might want to put into
+Kohlrabi by showing you how to create/add new modules. However, they're probably not immediately
+useful to most people; you will need to customize what data they store in Kohlrabi
+to satisfy your needs.
 
-The way customization works in Kohlrabi is to create a new Python module in the
-same format as the one in `kohlrabi.modules.example` (look at the source
+The way customization works in Kohlrabi is to create a new Python file in the
+same format as the one in `kohlrabi/modules/example.py` (look at the source
 code). In the configuration file, you'll specify this as your `module`; this
 module should be something available in `sys.path` that can be imported using
-Python's `__import__` directive. Any SQLAlchemy tables in this module with the
+Python's `__import__` directive. (The example script works because the current
+directory is automatically added to sys.path. You will certainly want to set it
+manually in a production environment). Any SQLAlchemy tables in this module with the
 metaclass `ReportMeta` will be detected by Kohlrabi as a potential data source,
 which you can upload data for.
 
@@ -27,10 +40,14 @@ server, indicating the date, the data for the report, and the data source.
 The next section will cover this in more detail.
 
 Adding New Reports
-------------------
+==================
+
+Setting up a Module
+-------------------
 
 It's easiest to explain this with an example. Suppose the report module
 specified by the config `module` variable has the following code in it:
+(This code is available in `kohlrabi/modules/example.py`)
 
     from sqlalchemy import *
     from kohlrabi.db import *
@@ -54,13 +71,16 @@ specified by the config `module` variable has the following code in it:
     
         @classmethod
         def report_data(cls, date):
-            return session.query(cls).filter(cls.date == date).order_by(cls.signups.id)
+            return session.query(cls).filter(cls.date == date).order_by(cls.signups)
 
 This is a data source that will track users who sign up on your site, based on
 the HTTP `Referrer` header. The table has three columns: `referrer` will track
 the domain that referred the initial visit to your site, `clickthroughs` will
 track who many people came to the site from that referrer, and `signups` will
 track how many of those people actually signed up.
+
+Setting up the DataBase
+-----------------------
 
 The next step is to create the table in your Kohlrabi SQLite database. If you
 don't do this, Kohlrabi will automatically create the table, but the table won't
@@ -80,37 +100,54 @@ querying from the `report_data` method:
 
 OK, that's all the setup you need to do on the Kohlrabi side of things: create a
 Python SQLAlchemy class, and create a table in your SQLite database. The second
-step is to write a report that generates data to store in Kohlrabi. You can do
-this however you want, in any language you want. This report should finish by
+step is to write a report that generates data to store in Kohlrabi. 
+
+Sending data to Kohlrabi
+-------------------------
+
+You can do this however you want, in any language you want. This report should finish by
 making a normal HTTP POST request to your Kohlrabi instance, with URL `/upload`,
 and the following POST parameters:
 
 * `date` -- the date for this data, in the format YYYY-MM-DD
-* `table` -- the name of the Python class you defined earlier (in this example, `DailySignups`)
+* `module` -- the name of the Python class you defined earlier (in this example, `DailySignups`)
 * `data` -- A JSON list of dictionaries mapping column names (excluding `id` and `date`) to their respective values
 
 For instance, if we were running Kohlrabi on `http://localhost:8888`, then the
 following Python code would generate a sample report for 2001-01-1:
+(This code is available in kohlrabi/example/pusher_example.py)
 
     import json
     import urllib
     
-    urllib.urlopen('http://localhost:8888/upload',
-        urllib.urlencode({'date': '2010-01-01',
-                          'data': json.dumps([{'referrer': 'www.yahoo.com',
-                                               'clickthroughs': 100,
-                                               'signups': 7},
-                                              {'referrer': 'www.google.com',
-                                               'clickthroughs': 500,
-                                               'signups': 42}]),
-                          'table': 'DailySignups'}))
+    urllib.urlopen('http://localhost:8888/kohlrabi/upload',
+         urllib.urlencode({'date': '2011-02-13',
+                           'data': json.dumps([{'referrer': 'www.yahoo.com',
+                                                'clickthroughs': 32984,
+                                                'signups': 123},
+                                               {'referrer': 'www.google.com',
+                                                'clickthroughs': 23452,
+                                                'signups': 432},
+                                               {'referrer': 'www.excite.com',
+                                                'clickthroughs': 82,
+                                                'signups': 0},
+                                               {'referrer': 'www.ask.com',
+                                                'clickthroughs': 31,
+                                                'signups': 0},
+                                               {'referrer': 'www.cuil.com',
+                                                'clickthroughs': 4,
+                                                'signups': 0},
+                                               {'referrer': 'www.bing.com',
+                                                'clickthroughs': 21032,
+                                                      'signups': 98}]),
+                            'module': 'DailySignups'}))
 
 Just to reiterate: because the interface to Kohlrabi is a normal HTTP request
 using JSON, you can use any language to send data to Kohlrabi. You can use Java,
 Ruby, a bash script, etc. Whatever works for you.
 
 Configuration
--------------
+=============
 
 This section describes the parameters that can be placed in the config file. The
 config file should be in YAML format. You can specify the path to the

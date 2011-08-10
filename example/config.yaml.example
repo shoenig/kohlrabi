@@ -1,4 +1,4 @@
-database: sqlite:///kohlrabi.sqlite
+database: sqlite:///example/example.db
 debug: true
 module: kohlrabi.modules.example
 path_prefix: /kohlrabi/

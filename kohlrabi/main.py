@@ -97,4 +97,7 @@ if __name__ == '__main__':
             stream_handler = logging.StreamHandler()
             stream_handler.setLevel(logging.DEBUG if debug else logging.INFO)
             log.addHandler(stream_handler)
-        run_application()
+        try:
+            run_application()
+        except KeyboardInterrupt:
+            pass
